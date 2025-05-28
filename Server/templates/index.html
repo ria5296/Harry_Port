@@ -5,6 +5,7 @@
   <title>버티포트 관제 시스템</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script defer src="{{ url_for('static', filename='main.js') }}"></script>
 </head>
 <body>
   <div class="container">
@@ -19,13 +20,16 @@
       </div>
     </div>
     <div class="right-panel">
+      <!-- 센서 데이터 + 드론 정보 통합 -->
       <div class="info-box">
         <h3>드론 정보</h3>
-        <p>위도: <span id="lat">-</span></p>
-        <p>경도: <span id="lon">-</span></p>
-        <p>고도: <span id="alt">-</span></p>
-        <p>배터리: <span id="battery">-</span>%</p>
+        <p>배터리: <span id="bat">-</span>%</p>
+        <p>횡기울기: <span id="roll">-</span>°</p>
+        <p>종기울기: <span id="pitch">-</span>°</p>
+        <p>고도: <span id="height">-</span>cm</p>
       </div>
+
+      <!-- 시스템 정보 -->
       <div class="info-box">
         <h3>시스템 정보</h3>
         <p>로봇 상태: <span id="robot_status">-</span></p>
@@ -35,21 +39,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-    const socket = io();
-    socket.on('system_info', data => {
-      document.getElementById('robot_status').textContent = data.robot_status;
-      document.getElementById('cpu').textContent = data.cpu;
-      document.getElementById('ram').textContent = data.ram;
-      document.getElementById('net').textContent = data.net;
-    });
-    socket.on('drone_info', data => {
-      document.getElementById('lat').textContent = data.lat;
-      document.getElementById('lon').textContent = data.lon;
-      document.getElementById('alt').textContent = data.alt;
-      document.getElementById('battery').textContent = data.battery;
-    });
-  </script>
 </body>
 </html>
