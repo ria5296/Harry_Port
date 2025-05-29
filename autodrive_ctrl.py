@@ -28,7 +28,7 @@ start_check = False         # start order check, True=can go to next place
 basket_check = False        # basket open check, True=can open basket
 is_reached = 0              # if reached at goal, this changes to 1, else 0
 
-# home & room points(x_meter, y_meter)
+# home & room points(x_meter, y_meter)   -> 헤딩각 추가 가능
 home_point = (-2.00, 0.00)
 room1_point = (2.00, 1.00)
 room2_point = (2.00, -1.00)
@@ -63,12 +63,6 @@ def getStartCheck(data):
     global start_check
     if data.data == True:
         start_check = True
-
-# Subscriber's callback functions for get basket check
-def getBasketCheck(data):
-    global basket_check
-    if data.data == True:
-        basket_check = True
 
 # function for publishing navigation goal
 def pubNavGoal(pose):
