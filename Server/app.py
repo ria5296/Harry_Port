@@ -31,7 +31,6 @@ def parse_sensor_line(line):
 def serial_thread():
     global latest_sensor_data
     for data in read_serial():
-        print("시리얼 데이터 수신:", data)
         parsed = parse_sensor_line(data)
         if parsed:
             latest_sensor_data = parsed
