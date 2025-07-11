@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>버티포트 관제 시스템</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script defer src="{{ url_for('static', filename='main.js') }}"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <div class="map-section">
+        <h2>SLAM 지도</h2>
+        <img id="map" src="{{ url_for('static', filename='map_sample.jpg') }}" />
+      </div>
+      <div class="camera-section">
+        <h2>로봇 카메라</h2>
+        <img id="camera" src="/camera_stream" />
+      </div>
+    </div>
+    <div class="right-panel">
+      <!-- 센서 데이터 + 드론 정보 통합 -->
+      <div class="info-box">
+        <h3>드론 정보</h3>
+        <p>배터리: <span id="bat">-</span>%</p>
+        <p>종기울기: <span id="pitch">-</span>°</p>
+        <p>횡기울기: <span id="roll">-</span>°</p>
+
+        <p>고도: <span id="height">-</span>cm</p>
+      </div>
+
+      <!-- 시스템 정보 -->
+      <div class="info-box">
+        <h3>시스템 정보</h3>
+        <p>로봇 상태: <span id="robot_status">-</span></p>
+        <p>CPU 사용량: <span id="cpu">-</span>%</p>
+        <p>RAM 사용량: <span id="ram">-</span>%</p>
+        <p>네트워크 상태: <span id="net">-</span></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
