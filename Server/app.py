@@ -4,9 +4,23 @@ from threading import Thread
 import time
 from serial_reader import read_serial
 import re
+import socketio  # 젯슨에서 수신하기 위한 클라이언트용
+import rospy
+import actionlib
+from geometry_msgs.msg import PoseWithCovarianceStamped, Point, Quaternion, Pose
+from move_base_msgs.msg import MoveBaseActionResult, MoveBaseAction, MoveBaseGoal
+from std_msgs.msg import Int8, Int16, Image, Bool, Float32
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
+socketio_server = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
+
+# 젯슨 클라이언트 연결 설정
+JETSON_IP = '192.168.0.101'  # LTE 라우터 내 할당된 젯슨 IP로 수정
+JETSON_PORT = 6000
+sio_jetson = socketio.Client()
+
+
+rospy.Subscriber("/sky_camera/image_raw", Image, getImage , queue_size=10)
 
 latest_sensor_data = {
     'bat': None,
@@ -16,7 +30,6 @@ latest_sensor_data = {
 }
 
 def parse_sensor_line(line):
-    # "BAT:xx,ROLL:xx,PITCH:xx,HEIGHT:xx" 형태를 파싱 (공백 포함 대응)
     pattern = r"BAT\s*:\s*(\d+),\s*Roll\s*:\s*(-?\d+),\s*Pitch\s*:\s*(-?\d+),\s*Height\s*:\s*(\d+)"
     match = re.match(pattern, line)
     if match:
@@ -34,49 +47,62 @@ def serial_thread():
         parsed = parse_sensor_line(data)
         if parsed:
             latest_sensor_data = parsed
-            socketio.emit('sensor_update', {'sensor': parsed}, namespace='/')
+            socketio_server.emit('sensor_update', {'sensor': parsed}, namespace='/')
+            # 젯슨에도 전송
+            if sio_jetson.connected:
+                sio_jetson.emit('sensor_update', parsed)
+
+def connect_to_jetson():
+    try:
+        sio_jetson.connect(f'http://{JETSON_IP}:{JETSON_PORT}')
+        print(f"젯슨에 연결됨: {JETSON_IP}:{JETSON_PORT}")
+    except Exception as e:
+        print(f"젯슨 연결 실패: {e}")
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-def gen_dummy_map():
-    with open('static/test_map.jpg', 'rb') as f:
-        frame = f.read()
-    while True:
-        time.sleep(0.1)
-        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-def gen_dummy_camera():
-    with open('static/test_camera.jpg', 'rb') as f:
-        frame = f.read()
-    while True:
-        time.sleep(0.1)
-        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
 @app.route('/map_stream')
 def map_stream():
-    return Response(gen_dummy_map(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    with open('static/test_map.jpg', 'rb') as f:
+        frame = f.read()
+    def stream():
+        while True:
+            time.sleep(0.1)
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    return Response(stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/camera_stream')
 def camera_stream():
-    return Response(gen_dummy_camera(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    with open('static/test_camera.jpg', 'rb') as f:
+        frame = f.read()
+    def stream():
+        while True:
+            time.sleep(0.1)
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    return Response(stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/sensor', methods=['GET'])
 def get_sensor_data():
     return jsonify({'sensor': latest_sensor_data})
 
-# WebSocket 이벤트
-@socketio.on('drone_info')
+# WebSocket 이벤트 처리
+@socketio_server.on('drone_info')
 def handle_drone_info(data):
     print("드론 정보 수신:", data)
-    socketio.emit('update_drone_info', data, namespace='/', broadcast=True)
+    socketio_server.emit('update_drone_info', data, namespace='/', broadcast=True)
+    if sio_jetson.connected:
+        sio_jetson.emit('update_drone_info', data)
 
-@socketio.on('system_info')
+@socketio_server.on('system_info')
 def handle_system_info(data):
     print("시스템 정보 수신:", data)
-    socketio.emit('update_system_info', data, namespace='/', broadcast=True)
+    socketio_server.emit('update_system_info', data, namespace='/', broadcast=True)
+    if sio_jetson.connected:
+        sio_jetson.emit('update_system_info', data)
 
 if __name__ == '__main__':
     Thread(target=serial_thread, daemon=True).start()
-    socketio.run(app, host='0.0.0.0', port=5000)
+    Thread(target=connect_to_jetson, daemon=True).start()
+    socketio_server.run(app, host='0.0.0.0', port=5000)
