@@ -1,49 +1,263 @@
+:root {
+  --bg: #0f0f1b;
+  --panel: #1a1a2e;
+  --panel-2: #252540;
+  --text: #fff;
+  --muted: #a7a7c3;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
 body {
-    margin: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #0f0f1b;
-    color: white;
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, "Noto Sans KR", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  height: 100vh;
+}
+
+.left-panel {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+}
+
+/* ===== 왼쪽: 로봇 카메라 복구 스타일 ===== */
+.camera-section {
+  position: relative;
+  height: calc(75vh - 10px);
+  background: var(--panel);
+  border-radius: var(--radius);
+  overflow: hidden;
+  padding: 0;
+  box-shadow: 0 8px 24px rgba(0,0,0,.28);
+}
+
+.camera-section h2 {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  margin: 0;
+  font-size: 1.5rem;
+  background: rgba(15,15,27,.65);
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 2;
+  line-height: 1;
+}
+
+#camera {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* ===== 왼쪽: INFO 메시지 복구 스타일 ===== */
+.info-message {
+  height: 22vh;
+  margin-top: 8px;
+  background: var(--panel-2);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  overflow-y: auto;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 4px 14px rgba(0,0,0,.18);
+}
+
+.info-message h3 {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+  letter-spacing: .2px;
+}
+
+#info_log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#info_log li {
+  font-size: .92rem;
+  color: var(--text);
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding: 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#info_log li:first-child {
+  border-top: none;
+}
+
+/* ===== 오른쪽: SLAM 대체 패널 (ops-section) ===== */
+.ops-section {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 12px;
+  height: calc(62.5vh + 20px);
+  display: grid;
+  grid-template-rows: 38% 1fr;     /* 윗칸: 버튼 / 아랫칸: 정보(2그룹) */
+  gap: 10px;
+}
+
+.ops-top, .ops-bottom {
+  background: linear-gradient(180deg, rgba(37,37,64,.9), rgba(26,26,46,.9));
+  border-radius: calc(var(--radius) - 2px);
+  padding: 12px;
+  position: relative;
+}
+
+.ops-top h2, .ops-bottom h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.5rem;
+}
+
+/* 버튼 행 - 살짝 아래로 */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  height: calc(100% - 60px); /* 기존보다 살짝 줄여서 위치 안정화 */
+  align-items: center;       /* 중앙 정렬 */
+  justify-content: space-between;
+  padding-top: 4px;          /* 약간 위 여백 */
+}
+
+/* 버튼 크기/글자 확대는 그대로 유지 */
+.btn {
+  flex: 1;
+  padding: 18px 16px;
+  font-size: 1.05rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .2s ease, background .2s ease;
+  backdrop-filter: blur(2px);
+}
+
+.btn:active { transform: translateY(1px); }
+.btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+
+.btn.primary {
+  background: linear-gradient(180deg, #2f54eb, #1f3bb3);
+  border-color: rgba(47,84,235,.6);
+}
+.btn.danger {
+  background: linear-gradient(180deg, #e04b59, #b83a46);
+  border-color: rgba(224,75,89,.6);
+}
+.btn.ghost {
+  background: rgba(255,255,255,.06);
+}
+
+/* INFO 공통 타일 */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.stat-tile {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 76px;
+}
+.stat-tile .k { font-size: .85rem; color: var(--muted); }
+.stat-tile .v { font-size: 1.3rem; font-weight: 700; }
+
+/* ops-bottom 안에서 두 그룹을 세로로 배치 */
+.ops-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-group {
+  background: rgba(37,37,64,.9);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 10px 12px 14px;
+}
+
+.info-group h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.05rem;
+}
+
+/* ===== 오른쪽 아래: 드론 정보 & 시스템 정보 ===== */
+.info-box {
+  background: var(--panel-2);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.info-box h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.05rem;
+}
+.info-box p {
+  margin: .35rem 0;
+  color: var(--muted);
+}
+
+/* 반응형 */
+@media (max-width: 1100px) {
+  .container { flex-direction: column; }
+  .left-panel, .right-panel { flex: unset; }
+  .camera-section { height: 52vh; }
+  .info-message { height: 24vh; }
+  .ops-section { grid-template-rows: 44% 1fr; }
+  .stat-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .camera-section { height: 48vh; }
+  .info-message { height: 26vh; }
+  .btn-row { flex-direction: column; }
+}
+
+.btn[disabled] {
+  opacity: .5;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
+}
+/* ===== 추종/내부 INFO: 3번째 타일 숨기고 2번째 타일을 가로로 확장 ===== */
+.ops-bottom .info-group .stat-grid .stat-tile:nth-child(2) {
+  grid-column: span 2;  /* 2~3칸 차지 */
+}
+
+.ops-bottom .info-group .stat-grid .stat-tile:nth-child(3) {
+  display: none;        /* 타겟 신뢰도 타일 숨김 */
+}
+
+/* 반응형에서도 깔끔하게: 한 열일 때는 span 해제 */
+@media (max-width: 1100px) {
+  .ops-bottom .info-group .stat-grid .stat-tile:nth-child(2) {
+    grid-column: auto;
   }
-  
-  .container {
-    display: flex;
-    height: 100vh;
-  }
-  
-  .left-panel {
-    flex: 2;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .right-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    padding: 1rem;
-    background-color: #1a1a2e;
-  }
-  
-  .map-section, .camera-section {
-    flex: 1;
-    padding: 10px;
-    background-color: #1a1a2e;
-    margin: 5px;
-    border-radius: 10px;
-  }
-  
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 8px;
-  }
-  
-  .info-box {
-    background-color: #252540;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    border-radius: 10px;
-  }
-  
+}

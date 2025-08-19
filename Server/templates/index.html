@@ -4,39 +4,82 @@
   <meta charset="UTF-8" />
   <title>버티포트 관제 시스템</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
   <script defer src="{{ url_for('static', filename='main.js') }}"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="container">
     <div class="left-panel">
-      <div class="map-section">
-        <h2>SLAM 지도</h2>
-        <img id="map" src="{{ url_for('static', filename='map_sample.jpg') }}" />
-      </div>
       <div class="camera-section">
         <h2>로봇 카메라</h2>
-        <img id="camera" src="/camera_stream" />
+        <img id="camera" src="" alt="로봇 카메라 영상" />
+      </div>
+
+      <div class="info-message">
+        <h3>INFO 메시지</h3>
+        <ul id="info_log"></ul>
       </div>
     </div>
+
     <div class="right-panel">
-      <!-- 센서 데이터 + 드론 정보 통합 -->
+      <!-- SLAM 대체: 작전 제어 + 드론 추종 INFO + 내부 감시 INFO -->
+      <section class="ops-section">
+        <div class="ops-top">
+          <h2>작전 제어</h2>
+          <div class="btn-row">
+            <button class="btn ghost" id="btn-standby">이륙 승인</button>
+            <button class="btn primary" id="btn-follow">승객 탑승 완료</button>
+            <button class="btn danger" id="btn-emergency">비상 정지</button>
+          </div>
+        </div>
+
+        <div class="ops-bottom">
+          <!-- 드론 추종 INFO -->
+          <div class="info-group">
+            <h3>드론 추종 INFO</h3>
+            <div class="stat-grid">
+              <div class="stat-tile">
+                <span class="k">상태</span>
+                <span class="v" id="follow-state">🔴 대기</span>
+              </div>
+              <div class="stat-tile">
+                <span class="k">추종 거리</span>
+                <span class="v" id="follow-distance">- m</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 내부 감시 INFO -->
+          <div class="info-group">
+            <h3>내부 감시 INFO</h3>
+            <div class="stat-grid">
+              <div class="stat-tile">
+                <span class="k">상태</span>
+                <span class="v" id="person-detected">🟢 정상</span>
+              </div>
+              <div class="stat-tile">
+                <span class="k">감지 객체</span>
+                <span class="v" id="internal-temp">없음</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="info-box">
-        <h3>드론 정보</h3>
+        <h3>기체 정보</h3>
         <p>배터리: <span id="bat">-</span>%</p>
         <p>종기울기: <span id="pitch">-</span>°</p>
         <p>횡기울기: <span id="roll">-</span>°</p>
-
         <p>고도: <span id="height">-</span>cm</p>
       </div>
 
-      <!-- 시스템 정보 -->
       <div class="info-box">
-        <h3>시스템 정보</h3>
+        <h3>로봇 정보</h3>
         <p>로봇 상태: <span id="robot_status">-</span></p>
-        <p>CPU 사용량: <span id="cpu">-</span>%</p>
-        <p>RAM 사용량: <span id="ram">-</span>%</p>
-        <p>네트워크 상태: <span id="net">-</span></p>
+        <p>RPM 출력: <span id="rpm">-</span>%</p>
+        <p>전류 사용량: <span id="current">-</span>%</p>
+        <p>모터드라이브 상태: <span id="state">-</span></p>
       </div>
     </div>
   </div>
