@@ -1,5 +1,5 @@
 let ws;
-const JETSON_IP = '10.47.92.75';
+const JETSON_IP = '172.20.10.3';
 const WS_PORT   = '3000';
 
 function logInfo(msg) {
@@ -13,6 +13,7 @@ function logInfo(msg) {
 
 let lastTakeOffStatus = null;
 let lastLandingStatus = null;
+let landing_height = false;
 
 function connectWebSocket() {
   ws = new WebSocket(`ws://${JETSON_IP}:${WS_PORT}`);
@@ -59,45 +60,74 @@ function handleMessage(data) {
   }
   
   if (data.topic === 'dist_to_target' && data.type === 'Float'){
-    document.getElementById('follow-distance').textContent = data.data.toFixed(2) + ' m';
+    const dist = parseFloat(data.data).toFixed(3);
+    document.getElementById('follow-distance').textContent = dist + ' m';
   }
 
   if (data.topic === 'reached' && data.type === 'Bool'){
     if (data.data === true) {
       document.getElementById('follow-state').textContent = '🟢 추종중...';
+      landing_height = true;
     } else {
       document.getElementById('follow-state').textContent = '🔴 대기';
+      landing_height = false;
+      document.getElementById('drone-height').textContent = '-';
+
     }
   }
 
   if (data.topic === 'kill' && data.type === 'Bool'){
     if (data.data === true) {
       document.getElementById('person-detected').textContent = '🔴 위험 감지';
-      document.getElementById('internal-temp').textContent = 'Human'
+      document.getElementById('internal-temp').textContent = 'Human';
     } else {
       document.getElementById('person-detected').textContent = '🟢 정상';
-      document.getElementById('internal-temp').textContent = '없음'
+      document.getElementById('internal-temp').textContent = '없음';
     } 
   }
 
-  if (data.topic === 'robot/status' && data.type === 'Bool'){
-    if (data.data === true){
-      document.getElementById('robot_status').textContent = '🟢 CAN 데이터 수신 정상';
-    }else{
-      document.getElementById('robot_status').textContent = '🔴 CAN 데이터 수신 없음';
+  if (data.topic === 'md/rpm_left' && data.type === 'Float'){
+    document.getElementById('rpm_left').textContent = data.data;
+  }      
+
+  if (data.topic === 'md/rpm_right' && data.type === 'Float'){
+    document.getElementById('rpm_right').textContent = data.data;
+  }   
+
+  if (data.topic === 'md/current_left' && data.type === 'Float'){
+    document.getElementById('current_left').textContent = data.data;
+  }
+
+  if (data.topic === 'md/current_right' && data.type === 'Float'){
+    document.getElementById('current_right').textContent = data.data;
+  }
+
+  if (data.topic === 'md/state_left' && data.type === 'UInt'){
+      console.log(data.data);
+
+    switch (data.data) {
+      case 0: document.getElementById('state_left').textContent = '🟢 정상 / 상태 Bit : ' + data.data; break;
+      case 1: document.getElementById('state_left').textContent = '🔴 CTRL_FAIL / 상태 Bit : ' + data.data; break;
+      case 2: document.getElementById('state_left').textContent = '🔴 OVER_VOLT / 상태 Bit : ' + data.data; break;
+      case 3: document.getElementById('state_left').textContent = '🔴 OVER_TEMP / 상태 Bit : ' + data.data; break;
+      case 4: document.getElementById('state_left').textContent = '🔴 OVER_LOAD / 상태 Bit : ' + data.data; break;
+      case 5: document.getElementById('state_left').textContent = '🔴 HALL_FAIL or ENC_FAIL / 상태 Bit : ' + data.data; break;
+      case 6: document.getElementById('state_left').textContent = '🔴 INV_VEL / 상태 Bit : ' + data.data; break;
+      case 7: document.getElementById('state_left').textContent = '🔴 STALL / 상태 Bit : ' + data.data; break;
     }
   }
 
-  if (data.topic === 'md200t/rpm' && data.type === 'Int'){
-      document.getElementById('rpm').textContent = data.data;
-  }      
-
-  if (data.topic === 'md200t/current' && data.type === 'Float'){
-      document.getElementById('current').textContent = data.data;
-  }
-  
-  if (data.topic === 'md200t/status' && data.type === 'UInt8'){
-      document.getElementById('state').textContent = data.data;
+  if (data.topic === 'md/state_right' && data.type === 'UInt'){
+    switch (data.data) {
+      case 0: document.getElementById('state_right').textContent = '🟢 정상 / 상태 Bit : ' + data.data; break;
+      case 1: document.getElementById('state_right').textContent = '🔴 CTRL_FAIL / 상태 Bit : ' + data.data; break;
+      case 2: document.getElementById('state_right').textContent = '🔴 OVER_VOLT / 상태 Bit : ' + data.data; break;
+      case 3: document.getElementById('state_right').textContent = '🔴 OVER_TEMP / 상태 Bit : ' + data.data; break;
+      case 4: document.getElementById('state_right').textContent = '🔴 OVER_LOAD / 상태 Bit : ' + data.data; break;
+      case 5: document.getElementById('state_right').textContent = '🔴 HALL_FAIL or ENC_FAIL / 상태 Bit : ' + data.data; break;
+      case 6: document.getElementById('state_right').textContent = '🔴 INV_VEL / 상태 Bit : ' + data.data; break;
+      case 7: document.getElementById('state_right').textContent = '🔴 STALL / 상태 Bit : ' + data.data; break;
+    }
   }
 
   if (data.topic === 'take_off_status' && data.type === 'Int' && data.data !== lastTakeOffStatus) {
@@ -169,13 +199,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 const socket = io('http://localhost:5000');
 
-socket.on('system_info', data => {
-  document.getElementById('robot_status').textContent = data.robot_status ?? '-';
-  document.getElementById('cpu').textContent          = data.cpu ?? '-';
-  document.getElementById('ram').textContent          = data.ram ?? '-';
-  document.getElementById('net').textContent          = data.net ?? '-';
-});
-
 socket.on('sensor_update', data => {
   const sensor = data.sensor;
   if (!sensor) return;
@@ -184,6 +207,10 @@ socket.on('sensor_update', data => {
   document.getElementById('roll').textContent   = sensor.roll ?? '-';
   document.getElementById('pitch').textContent  = sensor.pitch ?? '-';
   document.getElementById('height').textContent = sensor.height ?? '-';
+
+  if (landing_height == true){
+    document.getElementById('drone-height').textContent = sensor.height;
+  }
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     const payload = {

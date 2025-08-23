@@ -9,9 +9,7 @@ from move_base_msgs.msg import MoveBaseActionResult, MoveBaseAction, MoveBaseGoa
 from std_msgs.msg import Int8, Bool, Float32, Int16MultiArray
 from tf.transformations import quaternion_from_euler
 
-# ---------------------------
-# [1] 전역 변수 선언
-# ---------------------------
+# [1] 전역 변수 설정
 
 # 자율주행 관련 변수
 x_meter = 0
@@ -19,13 +17,14 @@ y_meter = 0
 z_orient = 0
 w_orient = 0
 
-destination = 0  # 목적지 (1,2,3,4)
+destination = 0
 is_reached = 0
 kill_switch = False
 move_client = None
 current_goal = None
+emergency_stop = None
 
-# 기체 추종 관련 변수
+# 좌표 변환 관련 변수
 x_cam = 0
 y_cam = 0
 x_slam = 0
@@ -40,16 +39,15 @@ take_off_scenario = False
 landing_scenario = False
 start_check = False
 
-# ---------------------------
-# [2] 좌표 정의 (index 0 미사용)
-# ---------------------------
+# [2] waypoint 설정
+
 point_array = [
-    (0, 0, 0, 0),               # 0 - 미사용
+    (0, 0, 0, 0),   # 0 - 미사용
     (2.2184, 7.074, -0.213, 0.977),  # 1 - 격납고
     (4.879, 7.404, -0.842, 0.539),  # 2 - 승하차장
     (3.697, 7.363, 0.9716, 0.2366),  # 3 - 착륙장
     (3.645, 7.5836, -0.366, 0.9306),  # 4 - 이륙장
-    (0, 0, 0, 0)                # 4 - 충전소 (좌표 미설정)
+    (3.876, 5.4984, 0.387, 0.922)   # 5 - 충전소
 ]
 
 waypoint_1A = (3.821, 6.224, -0.247, 0.968)
@@ -62,9 +60,7 @@ waypoint_2B = (3.745, 7.597, -0.451, 0.893)
 waypoint_2C = (3.745, 7.597, -0.451, 0.893)
 waypoint_2D = (3.745, 7.597, -0.451, 0.893)
 
-# ---------------------------
 # [3] 함수
-# ---------------------------
 
 # 자율주행 관련 함수
 def getAmclPose(data):
@@ -84,7 +80,16 @@ def getNavStatus(data):
         is_reached = 1
 
 def pubNavGoal(pose):
-    global move_client, current_goal, kill_switch
+    global move_client, current_goal, kill_switch, emergency_stop
+
+    # 긴급정지 또는 사람 감지 여부 체크
+    if emergency_stop:
+        rospy.logwarn("[긴급정지 중] 이동 명령 전송하지 않음")
+        return
+    if kill_switch:
+        rospy.logwarn("[사람 감지로 이동 중지] 이동 명령 전송하지 않음")
+        return
+
     if move_client is None:
         move_client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         rospy.loginfo("Waiting for move_base action server...")
@@ -94,17 +99,18 @@ def pubNavGoal(pose):
     goal = MoveBaseGoal()
     goal.target_pose.header.frame_id = "map"
     goal.target_pose.header.stamp = rospy.Time.now()
-    goal.target_pose.pose = Pose(Point(pose[0], pose[1], 0), Quaternion(0, 0, pose[2], pose[3]))
+    goal.target_pose.pose = Pose(Point(pose[0], pose[1], 0),
+                                 Quaternion(0, 0, pose[2], pose[3]))
+
     current_goal = goal
 
-    if not kill_switch:
-        move_client.send_goal(goal)
-        wait = move_client.wait_for_result()
-        if not wait:
-            rospy.logerr("Action server not available or goal could not be reached")
-            rospy.signal_shutdown("Action server not available or goal could not be reached")
-    else:
-        rospy.logwarn("사람 감지로 goal 전송 중지됨")
+    rospy.loginfo("[목표 전송] x=%.3f, y=%.3f" % (pose[0], pose[1]))
+    move_client.send_goal(goal)
+
+    wait = move_client.wait_for_result()
+    if not wait:
+        rospy.logerr("Action server not available or goal could not be reached")
+        rospy.signal_shutdown("Action server not available or goal could not be reached")
 
 def move(target_pose, waypoint_name="목적지"):
     global is_reached    
@@ -129,11 +135,37 @@ def kill_callback(msg):
         if move_client is not None and current_goal is not None:
             move_client.send_goal(current_goal)
 
+def emergency_stop_callback(msg):
+    global emergency_stop, move_client, current_goal
+    if msg.data and not emergency_stop:
+        rospy.logwarn("[긴급정지] 모든 이동 명령 취소 및 정지")
+        emergency_stop = True
+        if move_client is not None:
+            move_client.cancel_all_goals()
+    elif not msg.data and emergency_stop:
+        rospy.loginfo("[긴급정지 해제] 이동 재개 가능 상태")
+        emergency_stop = False
+        if move_client is not None and current_goal is not None:
+            move_client.send_goal(current_goal)
 
 # 기체 추종 관련 함수
 def convert_cam_to_slam(x_cam, y_cam):
-    x_convert = 4.049 - ((float(x_cam) - 187.96) / (725.54 - 187.96)) * (4.049 - 3.183) # 좌우 반전
-    y_convert = 7.107 + (682.32 - float(y_cam)) / (682.32 - 50.18) * (8.126 - 7.107)
+    cam_left = 198.07
+    cam_top = 80.88
+    cam_width = 711.56 - cam_left
+    cam_height = 651.86 - cam_top
+
+    slam_left = 3.237
+    slam_top = 7.195
+    slam_width = 3.995 - slam_left
+    slam_height = 8.038 - slam_top
+
+    u = (x_cam - cam_left) / cam_width
+    v = (y_cam - cam_top) / cam_height
+
+    x_convert = slam_left + u * slam_width
+    y_convert = slam_top + v * slam_height
+
     return x_convert, y_convert
 
 def drone_position_callback(msg):
@@ -144,52 +176,51 @@ def drone_position_callback(msg):
     rospy.loginfo("변환된 SLAM 좌표: x={:.3f}, y={:.3f}".format(x_slam, y_slam))
 
 def drone_landing():
-    global x_slam, y_slam
+    global x_slam, y_slam, x_meter, y_meter
 
     rospy.loginfo("기체 추종 모드 시작")
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(1)
 
-    while not rospy.is_shutdown():
-        try:
-            amcl_msg = rospy.wait_for_message("/amcl_pose", PoseWithCovarianceStamped, timeout=1.0)
-            x_meter = amcl_msg.pose.pose.position.x
-            y_meter = amcl_msg.pose.pose.position.y
-        except rospy.ROSException:
-            rospy.logwarn("현재 위치를 가져오지 못했습니다. 재시도...")
-            continue
+    waypoint_2C = (3.745, 7.597)
 
+    while (x_meter == 0 and y_meter == 0) or (x_slam == 0 and y_slam == 0):
+        if x_meter == 0 and y_meter == 0:
+            rospy.logwarn("현재 위치 정보 대기중...")
         if x_slam == 0 and y_slam == 0:
             rospy.logwarn("드론 좌표 수신 대기중...")
-            rate.sleep()
-            continue
+        rate.sleep()
 
-        # 드론 방향을 향하는 yaw 각도 계산 (라디안)
-        delta_x = x_slam - x_meter
-        delta_y = y_slam - y_meter
-        yaw = math.atan2(delta_y, delta_x)
+    delta_x = waypoint_2C[0] - x_slam
+    delta_y = waypoint_2C[1] - y_slam
+    yaw = math.atan2(delta_y, delta_x)
 
-        # yaw를 quaternion (x, y, z, w)로 변환 (roll=0, pitch=0)
-        quat = quaternion_from_euler(0, 0, yaw)
-        z_orient = quat[2]
-        w_orient = quat[3]
+    quat = quaternion_from_euler(0, 0, yaw)
+    z_orient = quat[2]
+    w_orient = quat[3]
 
-        # target_angle = (x_meter, y_meter, z_orient, w_orient)
-        target_pose = (x_slam, y_slam, z_orient, w_orient)
+    target_pose = (x_slam, y_slam, z_orient, w_orient)
 
-        pubNavGoal(target_pose)
+    dist_x = x_meter - x_slam
+    dist_y = y_meter - y_slam
 
-        dist_to_target = math.sqrt((x_slam - x_meter) ** 2 + (y_slam - y_meter) ** 2)
-        dist_pub.publish(dist_to_target)
+    # 최초 거리 계산 및 발행
+    dist_to_target = math.sqrt(dist_x ** 2 + dist_y ** 2)
+    dist_pub.publish(dist_to_target)
 
-        rospy.loginfo("로봇:(%.2f, %.2f) 드론:(%.2f, %.2f)  yaw: %.2f rad, 거리: %.2fm",
-                      x_meter, y_meter, x_slam, y_slam, yaw, dist_to_target)
+    pubNavGoal(target_pose)
+    rospy.loginfo("목표 위치로 이동 명령 전송됨")
 
-        if dist_to_target < 0.2 and height < 10:
-            rospy.Subscriber('/sensor/height', Float32, height_callback, queue_size=1)
+    rospy.Subscriber('/sensor/height', Float32, height_callback, queue_size=1)
+
+    # 추종 종료 조건 
+    while not rospy.is_shutdown():
+        if (height < 10.0):
             rospy.loginfo("추종 종료")
+            arrived_pub.publish(False)
             break
 
         rate.sleep()
+
 
 # 관제 신호 대기 함수
 def getStartCheck(data):
@@ -223,9 +254,7 @@ def landing_callback(msg):
     global landing_scenario
     landing_scenario = msg.data
 
-# ---------------------------
 # [4] ROS 노드 및 토픽 Subsceribe/Publish
-# ---------------------------
 
 rospy.init_node("autodrive_ctrl_node")
 rate = rospy.Rate(10)
@@ -235,25 +264,19 @@ rospy.Subscriber("/destination", Int8, getDestination, queue_size=1)
 rospy.Subscriber("/move_base/result", MoveBaseActionResult, getNavStatus, queue_size=1)
 rospy.Subscriber("/kill", Bool, kill_callback, queue_size=1)
 rospy.Subscriber("/start_check", Bool, getStartCheck, queue_size=1)
-
 rospy.Subscriber("/take_off_scenario", Bool, takeoff_callback, queue_size=1) # 이륙 시나리오
 rospy.Subscriber("/landing_scenario", Bool, landing_callback, queue_size=1)  # 착륙 시나리오
-
-rospy.Subscriber('/drone_center', Int16MultiArray, drone_position_callback, queue_size=1)   #autodrive_vision -> Publish 필요!!
+rospy.Subscriber("/emergency_stop", Bool, emergency_stop_callback, queue_size=1)
 
 rospy.Subscriber('/sensor/battery', Float32, battery_callback, queue_size=1)
-rospy.Subscriber('/sensor/height', Float32, height_callback, queue_size=1)
-
+rospy.Subscriber('/drone_center', Int16MultiArray, drone_position_callback, queue_size=1)
+   
 arrived_pub = rospy.Publisher('/landing_zone_reached', Bool, queue_size=1)  
-dist_pub = rospy.Publisher('/dist_to_target', Float32, queue_size=1)
-
 status_take_off_pub = rospy.Publisher('/take_off_status', Int8, queue_size=1)  
 status_landing_pub = rospy.Publisher('/landing_status', Int8, queue_size=1)  
+dist_pub = rospy.Publisher('/dist_to_target', Float32, queue_size=1)
 
-
-# ---------------------------
-# [7] 시나리오 메인 루프
-# ---------------------------
+# [5] 시나리오 메인 루프
 
 while not rospy.is_shutdown():
     if take_off_scenario:
@@ -269,7 +292,6 @@ while not rospy.is_shutdown():
 
         # 2. 승객 탑승 및 승인 신호 대기
         status_take_off_pub.publish(2)
-        # 승객 탑승 완료까지 대기
         rospy.loginfo("승객 탑승 중...")
         waitStarting()
 
@@ -290,7 +312,6 @@ while not rospy.is_shutdown():
         # 5. 이착륙장 -> 격납고 복귀
         status_take_off_pub.publish(5)
         move(waypoint_1C, "waypoint_1C")
-        #move(waypoint_1D, "waypoint_1D")
         move(point_array[1], "격납고")
 
         # 6. 시나리오 종료 및 다음 명령 대기
@@ -306,7 +327,7 @@ while not rospy.is_shutdown():
         status_landing_pub.publish(1)
         rospy.loginfo("격납고 -> 이착륙장 이동 시작")
         move(waypoint_1A, "waypoint_2A")
-        #move(waypoint_2B, "waypoint_2B")
+        # move(waypoint_2B, "waypoint_2B")
         pubNavGoal(point_array[3])
         while not rospy.is_shutdown():
             if is_reached == 1:
@@ -323,35 +344,37 @@ while not rospy.is_shutdown():
         drone_landing()
         rospy.loginfo("드론 착륙 완료")
 
-        #3. 이착륙장 -> 승하차장 이동
+        # 3. 이착륙장 -> 승하차장 이동
         status_landing_pub.publish(3)
         move(waypoint_2C, "waypoint_2C")
-        move(waypoint_2D, "waypoint_2D")
+        move(waypoint_1C, "waypoint_1C")
         move(point_array[2], "승하차장")
  
         # 승객 하차 완료까지 대기
+        status_landing_pub.publish(4)
         rospy.loginfo("승객 하차 중...")
         waitStarting()
 
-        # 4. 승하차장에서 배터리 상태 확인 후 격납고 또는 충전소 이동
+        # 4. 승하차장에서 배터리 상태 확인 후 이동
         rospy.loginfo("드론 배터리 잔량 확인: %.2f%%", battery)
         if battery > 50:
-            status_landing_pub.publish(4)
+            status_landing_pub.publish(5)
             rospy.loginfo("배터리 충분, 격납고로 이동")
             move(point_array[1], "격납고")  # 승하차장 -> 격납고
 
         else:
-            status_landing_pub.publish(5)
+            status_landing_pub.publish(6)
             rospy.loginfo("배터리 부족, 충전소로 이동")
-            move(point_array[4], "충전소")  # 승하차장 -> 충전소
+            move(point_array[5], "충전소")  # 승하차장 -> 충전소
 
             # 배터리 충전 완료까지 대기
             rospy.loginfo("배터리 충전 중...")
+            status_landing_pub.publish(7)
             charge_start_time = rospy.Time.now()
-            charge_duration = rospy.Duration(5)  # 10초 충전 대기
+            charge_duration = rospy.Duration(5)
             while not rospy.is_shutdown():
                 if rospy.Time.now() - charge_start_time >= charge_duration:
-                    status_landing_pub.publish(6)
+                    status_landing_pub.publish(8)
                     rospy.loginfo("충전 완료!")
                     break
                 rospy.sleep(1.0)
@@ -361,7 +384,7 @@ while not rospy.is_shutdown():
             move(point_array[1], "격납고")
 
         # 5. 시나리오 종료 및 다음 명령 대기
-        status_landing_pub.publish()
+        status_landing_pub.publish(9)
         landing_scenario = False
         rospy.loginfo("착륙 시나리오 종료, 다음 대기")
 

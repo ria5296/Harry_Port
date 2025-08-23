@@ -35,6 +35,12 @@ rpm = None
 current = None
 state = None
 kill = None
+rpm_left = None
+rpm_right = None
+current_left = None
+current_right = None
+state_left = None
+state_right = None
 
 def take_off_callback(msg):
     global take_off
@@ -69,31 +75,43 @@ def kill_callback(msg):
     kill = msg
     if factory.client:
         factory.client.send_msg('kill', kill, 'Bool')
-
-def robot_status_callback(msg):
-    global robot_status
-    robot_status = msg
+        
+def rpm_left_callback(msg):
+    global rpm_left
+    rpm_left = msg
     if factory.client:
-        factory.client.send_msg('robot/status', robot_status, 'Bool')
+        factory.client.send_msg('md/rpm_left', rpm_left, 'Float')
 
-def rpm_callback(msg):
-    global rpm
-    rpm = msg
+def rpm_right_callback(msg):
+    global rpm_right
+    rpm_right = msg
     if factory.client:
-        factory.client.send_msg('md200t/rpm', rpm, 'Int')
+        factory.client.send_msg('md/rpm_right', rpm_right, 'Float')
 
-def current_callback(msg):
-    global current
-    current = msg
+def current_left_callback(msg):
+    global current_left
+    current_left = msg
     if factory.client:
-        factory.client.send_msg('md200t/current', current, 'Float')
+        factory.client.send_msg('md/current_left', current_left, 'Float')
 
-def state_callback(msg):
-    global state
-    state = msg
+def current_right_callback(msg):
+    global current_right
+    current_right = msg
     if factory.client:
-        factory.client.send_msg('md200t/status', state, 'UInt8')
+        factory.client.send_msg('md/current_right', current_right, 'Float')
 
+def state_left_callback(msg):
+    global state_left
+    state_left = msg
+    if factory.client:
+        factory.client.send_msg('md/state_left', state_left, 'UInt')
+
+def state_right_callback(msg):
+    global state_right
+    state_right = msg
+    if factory.client:
+        factory.client.send_msg('md/state_right', state_right, 'UInt')
+        
 class RosWebSocketClient(WebSocketClientProtocol):
     def onConnect(self, response):
         rospy.loginfo("WebSocket 서버에 연결됨: {}".format(response.peer))
@@ -223,10 +241,12 @@ def ros_main():
     rospy.Subscriber('/landing_zone_reached', Bool, reached_callback, queue_size=1)
     rospy.Subscriber('/kill', Bool, kill_callback, queue_size=1)
 
-    rospy.Subscriber('/robot/status', Bool, robot_status_callback, queue_size=1)
-    rospy.Subscriber('/md200t/rpm', Int32, rpm_callback, queue_size=1)
-    rospy.Subscriber('/md200t/current', Float32, current_callback, queue_size=1)
-    rospy.Subscriber('/md200t/status', UInt8, state_callback, queue_size=1)
+    rospy.Subscriber('/md/rpm_left', Float32, rpm_left_callback, queue_size=10)
+    rospy.Subscriber('/md/rpm_right', Float32, rpm_right_callback, queue_size=10)
+    rospy.Subscriber('/md/current_left', Float32, current_left_callback, queue_size=10)
+    rospy.Subscriber('/md/current_right', Float32, current_right_callback, queue_size=10)
+    rospy.Subscriber('/md/state_left', UInt8, state_left_callback, queue_size=10)
+    rospy.Subscriber('/md/state_right', UInt8, state_right_callback, queue_size=10)
 
     thread = threading.Thread(target=reactor.run, args=(False,))
     thread.daemon = True

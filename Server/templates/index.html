@@ -9,25 +9,29 @@
 </head>
 <body>
   <div class="container">
+    <!-- ===== 왼쪽 패널 ===== -->
     <div class="left-panel">
+      <!-- 카메라 -->
       <div class="camera-section">
         <h2>로봇 카메라</h2>
         <img id="camera" src="" alt="로봇 카메라 영상" />
       </div>
 
+      <!-- 메시지 로그 -->
       <div class="info-message">
         <h3>INFO 메시지</h3>
         <ul id="info_log"></ul>
       </div>
     </div>
 
+    <!-- ===== 오른쪽 패널 ===== -->
     <div class="right-panel">
-      <!-- SLAM 대체: 작전 제어 + 드론 추종 INFO + 내부 감시 INFO -->
+      <!-- 작전 제어 + 드론 추종 + 내부 감시 -->
       <section class="ops-section">
         <div class="ops-top">
           <h2>작전 제어</h2>
           <div class="btn-row">
-            <button class="btn ghost" id="btn-standby">이륙 승인</button>
+            <button class="btn ghost" id="btn-standby">착륙 승인</button>
             <button class="btn primary" id="btn-follow">승객 탑승 완료</button>
             <button class="btn danger" id="btn-emergency">비상 정지</button>
           </div>
@@ -35,7 +39,7 @@
 
         <div class="ops-bottom">
           <!-- 드론 추종 INFO -->
-          <div class="info-group">
+          <div class="info-group follow-info">
             <h3>드론 추종 INFO</h3>
             <div class="stat-grid">
               <div class="stat-tile">
@@ -43,8 +47,13 @@
                 <span class="v" id="follow-state">🔴 대기</span>
               </div>
               <div class="stat-tile">
-                <span class="k">추종 거리</span>
-                <span class="v" id="follow-distance">- m</span>
+                <span class="k">추종 목표 거리</span>
+                <span class="v"><span id="follow-distance">-</span> m</span>
+              </div>
+              <!-- 신규: 드론 고도 -->
+              <div class="stat-tile">
+                <span class="k">기체 고도</span>
+                <span class="v"><span id="drone-height">-</span> cm</span>
               </div>
             </div>
           </div>
@@ -66,20 +75,43 @@
         </div>
       </section>
 
+      <!-- 드론 기체 정보 -->
       <div class="info-box">
         <h3>기체 정보</h3>
-        <p>배터리: <span id="bat">-</span>%</p>
-        <p>종기울기: <span id="pitch">-</span>°</p>
-        <p>횡기울기: <span id="roll">-</span>°</p>
-        <p>고도: <span id="height">-</span>cm</p>
+        <p>배터리&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp; <span id="bat">-</span>%</p>
+        <p>종기울기&nbsp;&nbsp;:&nbsp;&nbsp; <span id="pitch">-</span>°</p>
+        <p>횡기울기&nbsp;&nbsp;:&nbsp;&nbsp; <span id="roll">-</span>°</p>
+        <p>고도&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp; <span id="height">-</span>cm</p>
       </div>
 
+      <!-- 로봇 정보 (2x2 블록형 구조) -->
       <div class="info-box">
         <h3>로봇 정보</h3>
-        <p>로봇 상태: <span id="robot_status">-</span></p>
-        <p>RPM 출력: <span id="rpm">-</span>%</p>
-        <p>전류 사용량: <span id="current">-</span>%</p>
-        <p>모터드라이브 상태: <span id="state">-</span></p>
+        <div class="robot-grid">
+          <!-- 왼쪽 모터 -->
+          <div class="robot-tile">
+            <span class="k">왼쪽 모터</span>
+            <span class="v">RPM&nbsp;&nbsp;:&nbsp;&nbsp; <span id="rpm_left">-</span></span>
+            <span class="v">전류&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp; <span id="current_left">-</span>A</span>
+          </div>
+
+          <!-- 오른쪽 모터 -->
+          <div class="robot-tile">
+            <span class="k">오른쪽 모터</span>
+            <span class="v">RPM&nbsp;&nbsp;:&nbsp;&nbsp; <span id="rpm_right">-</span></span>
+            <span class="v">전류&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp; <span id="current_right">-</span>A</span>
+          </div>
+
+          <div class="robot-tile">
+            <span class="k">왼쪽 모터 State</span>
+            <span class="v"><span id="state_left">-</span></span>
+          </div>
+
+          <div class="robot-tile">
+            <span class="k">오른쪽 모터 State</span>
+            <span class="v"><span id="state_right">-</span></span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
