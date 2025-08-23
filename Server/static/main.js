@@ -86,20 +86,21 @@ function handleMessage(data) {
     } 
   }
 
-if (data.topic === 'md/rpm_left' && data.type === 'Float') {
-  document.getElementById('rpm_left').textContent = data.data;
-
-  const fakeCurrent = (data.data * 0.005 + Math.random() * 0.05).toFixed(3); 
-  document.getElementById('current_left').textContent = fakeCurrent;
-}
-
-if (data.topic === 'md/rpm_right' && data.type === 'Float') {
-  document.getElementById('rpm_right').textContent = data.data;
-
-  const fakeCurrent = (data.data * 0.005 + Math.random() * 0.05).toFixed(3);
-  document.getElementById('current_right').textContent = fakeCurrent;
-}
-
+  if (data.topic === 'md/rpm_left' && data.type === 'Float'){ 
+    document.getElementById('rpm_left').textContent = data.data; 
+  } 
+  
+  if (data.topic === 'md/rpm_right' && data.type === 'Float'){ 
+    document.getElementById('rpm_right').textContent = data.data;
+  } 
+  
+  if (data.topic === 'md/current_left' && data.type === 'Float'){ 
+    document.getElementById('current_left').textContent = data.data; 
+  } 
+  
+  if (data.topic === 'md/current_right' && data.type === 'Float'){ 
+    document.getElementById('current_right').textContent = data.data; 
+  }
 
   if (data.topic === 'md/state_left' && data.type === 'UInt'){
       console.log(data.data);
